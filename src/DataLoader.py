@@ -22,11 +22,15 @@ class Columns:
     fare = 'fare'
     label = 'label'
 
+
 class DataLoader(object):
-    def __init__(self, train_filename, test_filename):
+    train_filename = 'data/train.csv'
+    test_filename = 'data/test.csv'
+
+    def __init__(self):
         logging.basicConfig(level=logging.INFO)
-        self.train_filename = train_filename
-        self.test_filename = test_filename
+        self.train_filename = DataLoader.train_filename
+        self.test_filename = DataLoader.test_filename
 
         self.train_df = pd.read_csv(self.train_filename)
         logging.info("Train DF loaded\n{}\n".format(self.train_df.head()))
@@ -44,7 +48,5 @@ class DataLoader(object):
 
 
 if __name__ == "__main__":
-    train_filename = 'data/train.csv'
-    test_filename = 'data/test.csv'
-    obj = DataLoader(train_filename, test_filename)
+    obj = DataLoader()
     obj.clean_data()
