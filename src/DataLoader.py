@@ -22,6 +22,8 @@ class Columns:
     fare = 'fare'
     label = 'label'
 
+    surge = 'surge'
+
 
 class DataLoader(object):
     train_filename = 'data/train.csv'
@@ -46,7 +48,18 @@ class DataLoader(object):
         self.train_df.dropna(inplace=True)
         logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
 
+    # def
+
+    def surge_or_not(self):
+        def get_rejects_percentage(row):
+            hour = int(row[Columns.pickup_time].split(' ')[1].split(':')[0])
+            return 1 if 17 < hour < 21 or 7 < hour < 10 else 0
+
+        self.train_df['surge'] = self.train_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+        self.test_df['surge'] = self.test_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+
 
 if __name__ == "__main__":
     obj = DataLoader()
-    obj.clean_data()
+    obj.surge_or_not()
+    print(obj.train_df.iloc[41])
