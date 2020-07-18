@@ -6,7 +6,7 @@ Created on 6/21/20
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-
+from tqdm import tqdm
 from DataLoader import DataLoader, Columns
 import numpy as np
 from sklearn import metrics
@@ -20,8 +20,9 @@ class FairClassification(object):
         self.data_loader = DataLoader()
         self.data_loader.clean_data()
         self.data_loader.surge_or_not()
+        self.data_loader.straight_distance()
         self.train_df, self.test_df = self.data_loader.get_dataframes()
-        self.submit = Submission('random_forest_hpt.csv')
+        self.submit = None
 
     def hyper_parameter_tuning(self):
         y = self.train_df[Columns.label]
@@ -65,10 +66,11 @@ class FairClassification(object):
         print(rf_random.best_params_)
 
     def random_forest(self):
+        self.submit = Submission('random_forest_with_distance_surge.csv')
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=0)
 
         random_grid = {'n_estimators': 733,
                        'max_features': None,
@@ -89,17 +91,19 @@ class FairClassification(object):
         y_pred = regressor.predict(X_test)
         print("Accuracy {}: {}".format(500, metrics.accuracy_score(y_test, y_pred)))
 
-        # predict_df = self.test_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time], axis=1)
-        # length_of_test = (predict_df.iloc[:, 1].count())
-        # print("length of test: {}".format(length_of_test))
-        # for i in range(length_of_test):
-        #     print(i)
-        #     input_data = predict_df.iloc[i].values
-        #     input_data_dim = np.expand_dims(input_data, axis=0)
-        #     p = regressor.predict(input_data_dim)
-        #     self.submit.write(self.test_df[Columns.trip_id][i], p[0])
+        predict_df = self.test_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time], axis=1)
+        length_of_test = (predict_df.iloc[:, 1].count())
+        print("length of test: {}".format(length_of_test))
+        for i in range(length_of_test):
+
+            print(i)
+            input_data = predict_df.iloc[i].values
+            input_data_dim = np.expand_dims(input_data, axis=0)
+            p = regressor.predict(input_data_dim)
+            self.submit.write(self.test_df[Columns.trip_id][i], p[0])
 
     def decision_trees(self):
+        self.submit =  Submission('decision_trees.csv')
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
 
@@ -112,14 +116,21 @@ class FairClassification(object):
 
         predict_df = self.test_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time], axis=1)
         length_of_test = (predict_df.iloc[:, 1].count())
+        print(predict_df.columns)
         print("length of test: {}".format(length_of_test))
-        for i in range(length_of_test):
+        for i in tqdm(range(length_of_test)):
+            # print(i)
             input_data = predict_df.iloc[i].values
             input_data_dim = np.expand_dims(input_data, axis=0)
+            # print(input_data_dim)
             p = clf.predict(input_data_dim)
             self.submit.write(self.test_df[Columns.trip_id][i], p[0])
+
+        # p = clf.predict(predict_df)
+        # print(p)
 
 
 if __name__ == "__main__":
     obj = FairClassification()
+    # obj.decision_trees()
     obj.random_forest()

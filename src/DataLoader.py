@@ -35,11 +35,16 @@ class DataLoader(object):
         self.test_filename = DataLoader.test_filename
 
         self.train_df = pd.read_csv(self.train_filename)
-        logging.info("Train DF loaded\n{}\n".format(self.train_df.head()))
         self.test_df = pd.read_csv(self.test_filename)
-        logging.info("Test DF loaded\n{}\n".format(self.test_df.head()))
+
 
     def get_dataframes(self):
+        self.test_df = self.test_df.fillna(0)
+        self.train_df = self.train_df.fillna(0)
+        logging.info("Test DF loaded\n{}\n".format(self.test_df.head()))
+        logging.info("Train DF loaded\n{}\n".format(self.train_df.head()))
+        print(self.train_df.columns)
+        print(self.test_df.columns)
         return self.train_df, self.test_df
 
     def clean_data(self):
@@ -48,15 +53,26 @@ class DataLoader(object):
         self.train_df.dropna(inplace=True)
         logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
 
-    # def
+    def straight_distance(self):
+        def get_dist(row):
+            dist = ((row[Columns.pick_lat] - row[Columns.drop_lat])**2 + (row[Columns.pick_lon] - row[Columns.drop_lon])**2)
+            return dist
+
+        self.train_df['dist'] = self.train_df.apply(lambda row: get_dist(row), axis=1)
+        self.test_df['dist'] = self.test_df.apply(lambda row: get_dist(row), axis=1)
+        # self.train_df = pd.concat([self.train_df, train_surge])
+        # self.test_df = pd.concat([self.train_df, test_surge])
 
     def surge_or_not(self):
         def get_rejects_percentage(row):
             hour = int(row[Columns.pickup_time].split(' ')[1].split(':')[0])
-            return 1 if 17 < hour < 21 or 7 < hour < 10 else 0
+            return hour
+            # return 1 if 17 < hour < 21 or 7 < hour < 10 else 0
 
-        self.train_df['surge'] = self.train_df.apply(lambda row: get_rejects_percentage(row), axis=1)
-        self.test_df['surge'] = self.test_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+        train_surge = self.train_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+        test_surge = self.test_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+        self.train_df = pd.concat([self.train_df, pd.get_dummies(train_surge, prefix='surge')], axis=1)
+        self.test_df = pd.concat([self.test_df, pd.get_dummies(test_surge, prefix='surge')], axis=1)
 
 
 if __name__ == "__main__":
