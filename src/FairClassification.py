@@ -3,16 +3,18 @@ Created on 6/21/20
 
 @author: dulanj
 '''
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from tqdm import tqdm
-from DataLoader import DataLoader, Columns
+from pprint import pprint
+
 import numpy as np
 from sklearn import metrics
-from Submission import Submission
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
-from pprint import pprint
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from tqdm import tqdm
+
+from DataLoader import DataLoader, Columns
+from Submission import Submission
 
 
 class FairClassification(object):
@@ -103,7 +105,6 @@ class FairClassification(object):
         length_of_test = (predict_df.iloc[:, 1].count())
         print("length of test: {}".format(length_of_test))
         for i in range(length_of_test):
-
             print(i)
             input_data = predict_df.iloc[i].values
             input_data_dim = np.expand_dims(input_data, axis=0)
@@ -114,7 +115,7 @@ class FairClassification(object):
         """:arg
         Decision trees algorithm
         """
-        self.submit =  Submission('decision_trees.csv')
+        self.submit = Submission('decision_trees.csv')
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
 
