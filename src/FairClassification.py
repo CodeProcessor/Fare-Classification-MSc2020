@@ -18,9 +18,10 @@ from pprint import pprint
 class FairClassification(object):
     def __init__(self):
         self.data_loader = DataLoader()
-        self.data_loader.clean_data()
+        # self.data_loader.clean_data()
         self.data_loader.surge_or_not()
         self.data_loader.straight_distance()
+        self.data_loader.geo_location()
         self.train_df, self.test_df = self.data_loader.get_dataframes()
         self.submit = None
 
@@ -31,7 +32,7 @@ class FairClassification(object):
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=0)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.7, random_state=0)
         train_features = X_train
         train_labels = y_train
         # Number of trees in random forest
@@ -72,7 +73,7 @@ class FairClassification(object):
         """:arg
         Random forest algorithm
         """
-        self.submit = Submission('random_forest_with_distance_surge.csv')
+        self.submit = Submission('random_forest_with_distance_surge_geo-location.csv')
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
 
@@ -93,6 +94,7 @@ class FairClassification(object):
                                            random_state=0)
 
         # regressor = RandomForestClassifier(n_estimators=500, random_state=0)
+        print("Training...")
         regressor.fit(X_train, y_train)
         y_pred = regressor.predict(X_test)
         print("Accuracy {}: {}".format(500, metrics.accuracy_score(y_test, y_pred)))
@@ -139,4 +141,5 @@ class FairClassification(object):
 if __name__ == "__main__":
     obj = FairClassification()
     # obj.decision_trees()
+    # obj.hyper_parameter_tuning()
     obj.random_forest()

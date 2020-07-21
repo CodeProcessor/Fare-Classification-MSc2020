@@ -9,6 +9,7 @@ import pandas as pd
 import logging
 from geopy.geocoders import Nominatim
 from functools import partial
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 class Columns:
@@ -43,12 +44,19 @@ class DataLoader(object):
         self.train_filename = DataLoader.train_filename
         self.test_filename = DataLoader.test_filename
 
-        self.train_df = pd.read_csv(self.train_filename)
-        self.test_df = pd.read_csv(self.test_filename)
+        train_df = pd.read_csv(self.train_filename)
+        print(train_df.shape)
+        train_df.dropna(inplace=True)
+        print(train_df.shape)
 
+        test_df = pd.read_csv(self.test_filename)
+
+        self.concat_df = pd.concat([train_df, test_df])
+        
+        print(self.concat_df.head())
+        print(self.concat_df.shape)
         geolocator = Nominatim(user_agent="MSCinCS")
         self.reverse = partial(geolocator.reverse, language="en")
-
 
         self.location_dict = dict()
         self.load_to_dict()
@@ -63,31 +71,38 @@ class DataLoader(object):
             print("Loading to dict")
             fp = open(DataLoader.location_file, 'r')
             for line in fp.readlines():
-                print(line)
-                lat, lon, loc = line.split(':')[:3]
+                # print(line)
+                lat, lon = line.split(':')[:2]
+                loc = ' '.join(line.split(':')[2:])
+                # print(loc)
                 self.location_dict[self.get_key(lat, lon)] = loc
 
     def get_dataframes(self):
         """
         Load dataframe
         """
-        self.test_df = self.test_df.fillna(0)
-        self.train_df = self.train_df.fillna(0)
-        logging.info("Test DF loaded\n{}\n".format(self.test_df.head()))
-        logging.info("Train DF loaded\n{}\n".format(self.train_df.head()))
-        print(self.train_df.columns)
-        print(self.test_df.columns)
-        return self.train_df, self.test_df
+
+        train_df = self.concat_df.iloc[0:16968]
+        test_df = self.concat_df.iloc[16968:]
+        test_df = test_df.drop([Columns.label], axis=1)
+        test_df = test_df.fillna(0)
+        train_df = train_df.fillna(0)
+        logging.info("Test DF loaded\n{}\n".format(test_df.head()))
+        logging.info("Train DF loaded\n{}\n".format(train_df.head()))
+        print(train_df.columns)
+        print(test_df.columns)
+        return train_df, test_df
 
     def clean_data(self):
         """:arg
         Cleaning the data
         Drop NULL values
         """
-        logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
-        logging.info("Dropping null rows")
-        self.train_df.dropna(inplace=True)
-        logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
+        pass
+        # logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
+        # logging.info("Dropping null rows")
+        # self.train_df.dropna(inplace=True)
+        # logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
 
     def write_loc_to_csv(self, lat, lon, location_info):
         self.filepointer.write('{}:{}:{}\n'.format(lat, lon, location_info))
@@ -98,24 +113,29 @@ class DataLoader(object):
         print("Getting location {}".format(self.get_loc_counter))
         _key = self.get_key(lat, lon)
         if _key in self.location_dict:
-            return self.location_dict[_key]
+            return lat, lon, self.location_dict[_key]
         else:
             location_info = self.reverse("{}, {}".format(lat, lon))
             self.write_loc_to_csv(lat, lon, location_info)
-            return location_info
+            return lat, lon, location_info
 
     def geo_location(self):
+        def get_loc(row, index):
+            lat, lon, location = self.get_location(row[Columns.pick_lat], row[Columns.pick_lon])
 
-        def get_loc(row):
-            location = self.get_location(row[Columns.pick_lat], row[Columns.pick_lon])
-            # print(str(location).split(',')[-5])
-            return location
+            try:
+                loc = str(location).split(',')[-index]
+                print(loc)
+            except IndexError:
+                print(location)
+                loc = str(location).split(',')[-index+1]
 
-        self.train_df['pick_loc'] = self.train_df.apply(lambda row: get_loc(row), axis=1)
-        self.test_df['pick_loc'] = self.test_df.apply(lambda row: get_loc(row), axis=1)
+            return loc
 
-
-
+        train_pickup = self.concat_df.apply(lambda row: get_loc(row, index=4), axis=1)
+        train_pickup2 = self.concat_df.apply(lambda row: get_loc(row, index=5), axis=1)
+        self.concat_df = pd.concat([self.concat_df, pd.get_dummies(train_pickup, prefix='pick_loc4_')], axis=1)
+        self.concat_df = pd.concat([self.concat_df, pd.get_dummies(train_pickup2, prefix='pick_loc5_')], axis=1)
 
     def straight_distance(self):
         """:arg
@@ -125,8 +145,8 @@ class DataLoader(object):
             dist = ((row[Columns.pick_lat] - row[Columns.drop_lat])**2 + (row[Columns.pick_lon] - row[Columns.drop_lon])**2)
             return dist
 
-        self.train_df['dist'] = self.train_df.apply(lambda row: get_dist(row), axis=1)
-        self.test_df['dist'] = self.test_df.apply(lambda row: get_dist(row), axis=1)
+        self.concat_df['dist'] = self.concat_df.apply(lambda row: get_dist(row), axis=1)
+        # self.test_df['dist'] = self.test_df.apply(lambda row: get_dist(row), axis=1)
         # self.train_df = pd.concat([self.train_df, train_surge])
         # self.test_df = pd.concat([self.train_df, test_surge])
 
@@ -139,13 +159,15 @@ class DataLoader(object):
             return hour
             # return 1 if 17 < hour < 21 or 7 < hour < 10 else 0
 
-        train_surge = self.train_df.apply(lambda row: get_rejects_percentage(row), axis=1)
-        test_surge = self.test_df.apply(lambda row: get_rejects_percentage(row), axis=1)
-        self.train_df = pd.concat([self.train_df, pd.get_dummies(train_surge, prefix='surge')], axis=1)
-        self.test_df = pd.concat([self.test_df, pd.get_dummies(test_surge, prefix='surge')], axis=1)
+        train_surge = self.concat_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+        # test_surge = self.concat_df.apply(lambda row: get_rejects_percentage(row), axis=1)
+        self.concat_df = pd.concat([self.concat_df, pd.get_dummies(train_surge, prefix='surge')], axis=1)
+        # self.test_df = pd.concat([self.test_df, pd.get_dummies(test_surge, prefix='surge')], axis=1)
 
 
 if __name__ == "__main__":
     obj = DataLoader()
     obj.geo_location()
+    obj.get_dataframes()
+    # obj.get_locations_parallel()
     # print(obj.train_df.iloc[41])
