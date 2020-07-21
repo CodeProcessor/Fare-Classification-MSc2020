@@ -3,8 +3,12 @@ Created on 6/21/20
 
 @author: dulanj
 '''
+import os
+
 import pandas as pd
 import logging
+from geopy.geocoders import Nominatim
+from functools import partial
 
 
 class Columns:
@@ -32,6 +36,7 @@ class Columns:
 class DataLoader(object):
     train_filename = 'data/train.csv'
     test_filename = 'data/test.csv'
+    location_file = 'locations.csv'
 
     def __init__(self):
         logging.basicConfig(level=logging.INFO)
@@ -40,6 +45,27 @@ class DataLoader(object):
 
         self.train_df = pd.read_csv(self.train_filename)
         self.test_df = pd.read_csv(self.test_filename)
+
+        geolocator = Nominatim(user_agent="MSCinCS")
+        self.reverse = partial(geolocator.reverse, language="en")
+
+
+        self.location_dict = dict()
+        self.load_to_dict()
+        self.filepointer = open(DataLoader.location_file, 'a')
+        self.get_loc_counter = 0
+
+    def get_key(self, lat, lon):
+        return '{}-{}'.format(lat,lon)
+
+    def load_to_dict(self):
+        if os.path.exists(DataLoader.location_file):
+            print("Loading to dict")
+            fp = open(DataLoader.location_file, 'r')
+            for line in fp.readlines():
+                print(line)
+                lat, lon, loc = line.split(':')[:3]
+                self.location_dict[self.get_key(lat, lon)] = loc
 
     def get_dataframes(self):
         """
@@ -62,6 +88,34 @@ class DataLoader(object):
         logging.info("Dropping null rows")
         self.train_df.dropna(inplace=True)
         logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
+
+    def write_loc_to_csv(self, lat, lon, location_info):
+        self.filepointer.write('{}:{}:{}\n'.format(lat, lon, location_info))
+        print("{}:{}:{} - Written".format(lat, lon, location_info))
+
+    def get_location(self, lat, lon):
+        self.get_loc_counter += 1
+        print("Getting location {}".format(self.get_loc_counter))
+        _key = self.get_key(lat, lon)
+        if _key in self.location_dict:
+            return self.location_dict[_key]
+        else:
+            location_info = self.reverse("{}, {}".format(lat, lon))
+            self.write_loc_to_csv(lat, lon, location_info)
+            return location_info
+
+    def geo_location(self):
+
+        def get_loc(row):
+            location = self.get_location(row[Columns.pick_lat], row[Columns.pick_lon])
+            # print(str(location).split(',')[-5])
+            return location
+
+        self.train_df['pick_loc'] = self.train_df.apply(lambda row: get_loc(row), axis=1)
+        self.test_df['pick_loc'] = self.test_df.apply(lambda row: get_loc(row), axis=1)
+
+
+
 
     def straight_distance(self):
         """:arg
@@ -93,5 +147,5 @@ class DataLoader(object):
 
 if __name__ == "__main__":
     obj = DataLoader()
-    obj.surge_or_not()
-    print(obj.train_df.iloc[41])
+    obj.geo_location()
+    # print(obj.train_df.iloc[41])
