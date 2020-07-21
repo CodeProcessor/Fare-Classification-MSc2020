@@ -17,9 +17,15 @@ class Submission(object):
         print("File created: {}".format(self.filename))
 
     def write(self, trip_id, pred):
+        """:arg
+        Write to the submission file
+        """
         self.file_pointer.write('{},{}\n'.format(trip_id, 1 if pred == 'correct' else 0))
 
     def __del__(self):
+        """:arg
+        Close the file when exit
+        """
         print("Saving file: {}".format(self.filename))
         self.file_pointer.close()
 

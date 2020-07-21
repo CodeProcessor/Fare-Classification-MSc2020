@@ -6,7 +6,11 @@ Created on 6/21/20
 import pandas as pd
 import logging
 
+
 class Columns:
+    """
+    Colomns of the dataset
+    """
     trip_id = 'tripid'
     additional_fare = 'additional_fare'
     duration = 'duration'
@@ -37,8 +41,10 @@ class DataLoader(object):
         self.train_df = pd.read_csv(self.train_filename)
         self.test_df = pd.read_csv(self.test_filename)
 
-
     def get_dataframes(self):
+        """
+        Load dataframe
+        """
         self.test_df = self.test_df.fillna(0)
         self.train_df = self.train_df.fillna(0)
         logging.info("Test DF loaded\n{}\n".format(self.test_df.head()))
@@ -48,12 +54,19 @@ class DataLoader(object):
         return self.train_df, self.test_df
 
     def clean_data(self):
+        """:arg
+        Cleaning the data
+        Drop NULL values
+        """
         logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
         logging.info("Dropping null rows")
         self.train_df.dropna(inplace=True)
         logging.info("Length of data: {}".format(len(self.train_df[Columns.trip_id].values)))
 
     def straight_distance(self):
+        """:arg
+        Taking the distance between pickup and drop locations
+        """
         def get_dist(row):
             dist = ((row[Columns.pick_lat] - row[Columns.drop_lat])**2 + (row[Columns.pick_lon] - row[Columns.drop_lon])**2)
             return dist
@@ -64,6 +77,9 @@ class DataLoader(object):
         # self.test_df = pd.concat([self.train_df, test_surge])
 
     def surge_or_not(self):
+        """:arg
+        Take the pickup hour to get the surge time information
+        """
         def get_rejects_percentage(row):
             hour = int(row[Columns.pickup_time].split(' ')[1].split(':')[0])
             return hour

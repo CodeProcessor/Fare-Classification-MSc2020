@@ -25,6 +25,9 @@ class FairClassification(object):
         self.submit = None
 
     def hyper_parameter_tuning(self):
+        """":arg
+        Hyperparameter tunining for the Random forest algorithm
+        """
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
 
@@ -66,6 +69,9 @@ class FairClassification(object):
         print(rf_random.best_params_)
 
     def random_forest(self):
+        """:arg
+        Random forest algorithm
+        """
         self.submit = Submission('random_forest_with_distance_surge.csv')
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
@@ -103,6 +109,9 @@ class FairClassification(object):
             self.submit.write(self.test_df[Columns.trip_id][i], p[0])
 
     def decision_trees(self):
+        """:arg
+        Decision trees algorithm
+        """
         self.submit =  Submission('decision_trees.csv')
         y = self.train_df[Columns.label]
         X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
@@ -125,9 +134,6 @@ class FairClassification(object):
             # print(input_data_dim)
             p = clf.predict(input_data_dim)
             self.submit.write(self.test_df[Columns.trip_id][i], p[0])
-
-        # p = clf.predict(predict_df)
-        # print(p)
 
 
 if __name__ == "__main__":
