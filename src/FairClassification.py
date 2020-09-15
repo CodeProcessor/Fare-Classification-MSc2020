@@ -138,9 +138,96 @@ class FairClassification(object):
             p = clf.predict(input_data_dim)
             self.submit.write(self.test_df[Columns.trip_id][i], p[0])
 
+    def knn(self):
+        from sklearn.neighbors import KNeighborsClassifier
+        self.submit = Submission('knn.csv')
+        y = self.train_df[Columns.label]
+        X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=0)
+
+        clf = KNeighborsClassifier()
+        clf.fit(X_train, y_train)
+        print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(
+            clf.score(X_test, np.ravel(y_test, order='C'))))
+
+        predict_df = self.test_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time], axis=1)
+        length_of_test = (predict_df.iloc[:, 1].count())
+        print(predict_df.columns)
+        print("length of test: {}".format(length_of_test))
+        for i in tqdm(range(length_of_test)):
+            # print(i)
+            input_data = predict_df.iloc[i].values
+            input_data_dim = np.expand_dims(input_data, axis=0)
+            # print(input_data_dim)
+            p = clf.predict(input_data_dim)
+            self.submit.write(self.test_df[Columns.trip_id][i], p[0])
+
+    def svm(self):
+        from sklearn import svm
+        self.submit = Submission('svm.csv')
+        y = self.train_df[Columns.label]
+        X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=0)
+
+        clf = svm.SVC(kernel='linear')
+        for i in range(int(len(X_train)/100)-1):
+            print("{} / {}".format(i, int(len(X_train)/100)-1))
+            clf.partial_fit(X_train[i*100:(i+1)*100], y_train[i*100:(i+1)*100])
+        print('Accuracy of logistic regression classifier on test set: {:.2f}'.format(
+            clf.score(X_test, np.ravel(y_test, order='C'))))
+
+        predict_df = self.test_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time], axis=1)
+        length_of_test = (predict_df.iloc[:, 1].count())
+        print(predict_df.columns)
+        print("length of test: {}".format(length_of_test))
+        for i in tqdm(range(length_of_test)):
+            # print(i)
+            input_data = predict_df.iloc[i].values
+            input_data_dim = np.expand_dims(input_data, axis=0)
+            # print(input_data_dim)
+            p = clf.predict(input_data_dim)
+            self.submit.write(self.test_df[Columns.trip_id][i], p[0])
+
+    def ann(self):
+        from sklearn import svm
+        self.submit = Submission('ann.csv')
+        y = self.train_df[Columns.label]
+        X = self.train_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time, Columns.label], axis=1)
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01, random_state=0)
+
+        import tensorflow as tf
+        # define the keras model
+        model = tf.keras.Sequential()
+        # model.add(tf.keras.layers.Dense(841, input_dim=8, activation='relu'))
+        model.add(tf.keras.layers.Dense(256,  input_dim=838,activation='relu'))
+        model.add(tf.keras.layers.Dropout(0.5))
+        model.add(tf.keras.layers.Dense(32, activation='relu'))
+        model.add(tf.keras.layers.Dropout(0.5))
+        model.add(tf.keras.layers.Dense(8, activation='relu'))
+        model.add(tf.keras.layers.Dropout(0.5))
+        model.add(tf.keras.layers.Dense(1, activation='sigmoid'))
+
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.fit(X_train, y_train, epochs=150, batch_size=10, verbose=1)
+
+        predict_df = self.test_df.drop([Columns.trip_id, Columns.pickup_time, Columns.drop_time], axis=1)
+        length_of_test = (predict_df.iloc[:, 1].count())
+        print(predict_df.columns)
+        print("length of test: {}".format(length_of_test))
+        for i in tqdm(range(length_of_test)):
+            # print(i)
+            input_data = predict_df.iloc[i].values
+            input_data_dim = np.expand_dims(input_data, axis=0)
+            # print(input_data_dim)
+            p = model.predict(input_data_dim)
+            self.submit.write(self.test_df[Columns.trip_id][i], p[0])
+
 
 if __name__ == "__main__":
     obj = FairClassification()
     # obj.decision_trees()
     # obj.hyper_parameter_tuning()
-    obj.random_forest()
+    obj.svm()
